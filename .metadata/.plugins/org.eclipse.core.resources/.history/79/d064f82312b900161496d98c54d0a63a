@@ -1,0 +1,943 @@
+package com.remy;
+
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.EventQueue;
+import java.awt.Font;
+import java.awt.MenuItem;
+import java.awt.PopupMenu;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.InputEvent;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.awt.print.PageFormat;
+import java.awt.print.PrinterJob;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+import javax.print.Doc;
+import javax.print.DocFlavor;
+import javax.print.DocPrintJob;
+import javax.print.PrintService;
+import javax.print.PrintServiceLookup;
+import javax.print.ServiceUI;
+import javax.print.SimpleDoc;
+import javax.print.attribute.DocAttributeSet;
+import javax.print.attribute.HashDocAttributeSet;
+import javax.print.attribute.HashPrintRequestAttributeSet;
+import javax.print.attribute.PrintRequestAttributeSet;
+import javax.swing.JCheckBoxMenuItem;
+import javax.swing.JComponent;
+import javax.swing.JFileChooser;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.KeyStroke;
+import javax.swing.ScrollPaneConstants;
+import javax.swing.event.CaretEvent;
+import javax.swing.event.CaretListener;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.undo.UndoManager;
+
+public class Notepad {
+	private JFrame mainFrame; // 主窗口
+	private Container con; // 主窗口的容器
+	private JMenuBar menuBar; // 菜单栏
+	private JMenu fileMenu; // 文件菜单
+	private JMenu editMenu; // 编辑菜单
+	private JMenu formatMenu; // 格式菜单
+	private JMenu viewMenu; // 视图菜单
+	private JMenu helpMenu; // 帮助菜单
+	private JScrollPane scrollPane; // 防止文本域的滚动面板
+	private JPanel panel; // 防止状态栏的面板
+	private JTextArea text; // 文本域
+	private JLabel stateLabel; // 状态栏中显示行数和列数的标签
+	private JMenuItem newFile; // 新建菜单项
+	private JMenuItem openFile; // 打开菜单项
+	private JMenuItem saveFile; // 保存菜单项
+	private JMenuItem saveAsFile; // 另存为菜单项
+	private JMenuItem pageSetting; // 页面设置菜单项
+	private JMenuItem print; // 打印菜单项
+	private JMenuItem exit; // 退出菜单项
+	private JMenuItem backout; // 撤销菜单项
+	private JMenuItem cut; // 剪切菜单项
+	private Font menuFont; // 菜单的字体
+	private Font textFont; // 文本的字体
+	private JMenuItem copy; // 复制菜单项
+	private JMenuItem paste; // 粘贴菜单项
+	private JMenuItem delete; // 删除菜单项
+	private JMenuItem find; // 查找菜单项
+	private JMenuItem findNext; // 查找下一个菜单项
+	private JMenuItem replace; // 替换菜单项
+	private JMenuItem go; // 转到菜单项
+	private JMenuItem selectAll; // 全选菜单项
+	private JMenuItem date; // 日期/时间菜单项
+	private JMenuItem font; // 字体菜单项
+	private JCheckBoxMenuItem stateBar; // 状态栏选择菜单项
+	private JMenuItem getHelp; // 获取帮助菜单项
+	private JMenuItem aboutNotepad; // 关于菜单项
+	private JCheckBoxMenuItem autoNewLine; // 自动换行选择菜单项
+	private PopupMenu rightClick; // 右键菜单
+	private MenuItem backoutRight; // 右键撤销菜单项
+	private MenuItem cutRight; // 右键剪切菜单项
+	private MenuItem copyRight; // 右键复制菜单项
+	private MenuItem pasteRight; // 右键粘贴菜单项
+	private MenuItem deleteRight; // 右键删除菜单项
+	private MenuItem selectAllRight; // 右键全选菜单项
+	private UndoManager undoManager; // 撤销管理
+	private FontDialog myFontDialog = null; // 更换字体对话框
+	private File file = null; // 已编辑的文本生成文件
+	private boolean changed = false; // 文本是否改变
+	private boolean haveName = false; // 文件是否有文件名
+
+	public Notepad() {
+		initialize(); // 初始化notepad
+		WindowUtil.setFrameCenter(mainFrame); // 设置主窗口居中
+	}
+
+	private void initialize() {
+		mainFrame = new JFrame(); // 实例化主窗口
+		con = mainFrame.getContentPane(); // 实例化主窗口容器
+		menuFont = new Font("微软雅黑", Font.PLAIN, 12); // 实例化菜单字体
+		textFont = new Font("微软雅黑", Font.PLAIN, 16); // 实例化文本字体
+		mainFrame.setTitle("无标题 - 记事本"); // 设置主窗口默认标题
+		mainFrame.setSize(1440, 767); // 设置窗口默认大小
+		mainFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE); // 设置关闭按钮默认功能为：当窗口关闭时，不做任何处理
+		mainFrame.addWindowListener(new WindowClickClose()); // 添加窗口监听事件
+
+		createMenu(); // 创建菜单栏
+		createOther(); // 创建文本域、状态栏等
+		createPopupMenu(); // 创建右键菜单
+	}
+
+	public void createMenu() {
+		menuBar = new JMenuBar(); // 实例化菜单栏
+		menuBar.setBackground(Color.WHITE); // 设置菜单栏背景为白色
+		mainFrame.setJMenuBar(menuBar); // 为主窗口添加菜单栏
+
+		fileMenu = new JMenu("文件(F)"); // 实例化文件菜单
+		fileMenu.setFont(menuFont); // 设置文件菜单字体
+		fileMenu.setMnemonic('F'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		fileMenu.addMouseListener(new MouseClick()); // 添加鼠标监听事件
+		menuBar.add(fileMenu); // 将文件菜单加入菜单栏
+
+		newFile = new JMenuItem("新建(N)"); // 实例化新建菜单项
+		newFile.setFont(menuFont); // 设置新建菜单项字体
+		newFile.setMnemonic('N'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		newFile.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N, InputEvent.CTRL_DOWN_MASK)); // 设置快捷键为Ctrl+N
+		newFile.addActionListener(new ActionAdapter()); // 添加操作监听事件
+		fileMenu.add(newFile); // 将新建菜单项加入文件菜单
+
+		openFile = new JMenuItem("打开(O)..."); // 实例化打开菜单项
+		openFile.setFont(menuFont); // 设置打开菜单项字体
+		openFile.setMnemonic('O'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		openFile.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, InputEvent.CTRL_DOWN_MASK)); // 设置快捷键为Ctrl+O
+		openFile.addActionListener(new ActionAdapter()); // 添加操作监听事件
+		fileMenu.add(openFile); // 将打开菜单项加入文件菜单
+
+		saveFile = new JMenuItem("保存(S)"); // 实例化保存菜单项
+		saveFile.setFont(menuFont); // 设置保存菜单项字体
+		saveFile.setMnemonic('S'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		saveFile.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, InputEvent.CTRL_DOWN_MASK)); // 设置快捷键为Ctrl+S
+		saveFile.addActionListener(new ActionAdapter()); // 添加操作监听事件
+		fileMenu.add(saveFile); // 将保存菜单项加入文件菜单
+
+		saveAsFile = new JMenuItem("另存为(A)..."); // 实例化另存为菜单项
+		saveAsFile.setFont(menuFont); // 设置另存为菜单项字体
+		saveAsFile.setMnemonic('A'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		saveAsFile.addActionListener(new ActionAdapter()); // 添加操作监听事件
+		fileMenu.add(saveAsFile); // 将另存为菜单项加入文件菜单
+
+		fileMenu.addSeparator(); // 添加一个分割线
+
+		pageSetting = new JMenuItem("页面设置(U)..."); // 实例化页面设置菜单项
+		pageSetting.setFont(menuFont); // 设置页面设置菜单项字体
+		pageSetting.setMnemonic('U'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		pageSetting.addActionListener(new ActionAdapter()); // 添加操作监听事件
+		fileMenu.add(pageSetting); // 将页面设置菜单项加入文件菜单
+
+		print = new JMenuItem("打印(P)..."); // 实例化打印菜单项
+		print.setFont(menuFont); // 设置打印菜单项字体
+		print.setMnemonic('P'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		print.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_P, InputEvent.CTRL_DOWN_MASK)); // 设置快捷键为Ctrl+P
+		print.addActionListener(new ActionAdapter()); // 添加操作监听事件
+		fileMenu.add(print); // 将打印菜单项加入文件菜单
+
+		fileMenu.addSeparator(); // 添加一个分割线
+
+		exit = new JMenuItem("退出(X)..."); // 实例化退出菜单项
+		exit.setFont(menuFont); // 设置退出菜单项字体
+		exit.setMnemonic('X'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		exit.addActionListener(new ActionAdapter()); // 添加操作监听时间
+		fileMenu.add(exit); // 将退出菜单项加入文件菜单
+
+		editMenu = new JMenu("编辑(E)"); // 实例化编辑菜单
+		editMenu.setFont(menuFont); // 设置编辑菜单字体
+		editMenu.setMnemonic('E'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		editMenu.addMouseListener(new MouseClick()); // 添加鼠标侦听事件
+		menuBar.add(editMenu); // 将编辑菜单加入菜单栏
+
+		backout = new JMenuItem("撤销(U)"); // 实例化撤销菜单项
+		backout.setFont(menuFont); // 设置撤销菜单项字体
+		backout.setMnemonic('U'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		backout.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK)); // 设置快捷键为Ctrl+Z
+		backout.addActionListener(new ActionAdapter()); // 添加操作监听事件
+		backout.setEnabled(false); // 默认设置为不可用
+		editMenu.add(backout); // 将撤销菜单项加入编辑菜单
+
+		editMenu.addSeparator(); // 添加一个分割线
+
+		cut = new JMenuItem("剪切(T)"); // 实例化剪切菜单项
+		cut.setFont(menuFont); // 设置剪切菜单项字体
+		cut.setMnemonic('T'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		cut.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, InputEvent.CTRL_DOWN_MASK)); // 设置快捷键为Ctrl+X
+		cut.addActionListener(new ActionAdapter()); // 添加操作监听事件
+		cut.setEnabled(false); // 默认设置为不可用
+		editMenu.add(cut); // 将剪切菜单项加入编辑菜单
+
+		copy = new JMenuItem("复制(C)"); // 实例化复制菜单项
+		copy.setFont(menuFont); // 设置复制菜单项字体
+		copy.setMnemonic('C'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		copy.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, InputEvent.CTRL_DOWN_MASK)); // 设置快捷键为Ctrl+C
+		copy.addActionListener(new ActionAdapter()); // 添加操作监听事件
+		copy.setEnabled(false); // 默认设置为不可用
+		editMenu.add(copy); // 将复制菜单项加入编辑菜单
+
+		paste = new JMenuItem("粘贴(V)"); // 实例化粘贴菜单项
+		paste.setFont(menuFont); // 设置粘贴菜单项字体
+		paste.setMnemonic('V'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		paste.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_V, InputEvent.CTRL_DOWN_MASK)); // 设置快捷键为Ctrl+V
+		paste.addActionListener(new ActionAdapter()); // 添加操作监听事件
+		editMenu.add(paste); // 将粘贴菜单项加入编辑菜单
+
+		delete = new JMenuItem("删除(L)"); // 实例化删除菜单项
+		delete.setFont(menuFont); // 设置删除菜单项字体
+		delete.setMnemonic('L'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		delete.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0)); // 设置快捷键为Delete
+		delete.addActionListener(new ActionAdapter()); // 添加操作监听事件
+		delete.setEnabled(false); // 默认设置为不可用
+		editMenu.add(delete); // 将删除菜单项加入编辑菜单
+
+		editMenu.addSeparator(); // 添加一个分割线
+
+		find = new JMenuItem("查找(F)"); // 实例化查找菜单项
+		find.setFont(menuFont); // 设置查找菜单项字体
+		find.setMnemonic('F'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		find.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F, InputEvent.CTRL_DOWN_MASK)); // 设置快捷键为Ctrl+F
+		find.addActionListener(new ActionAdapter()); // 添加操作监听事件
+		find.setEnabled(false); // 默认设置为不可用
+		editMenu.add(find); // 将查找菜单项加入编辑菜单
+
+		findNext = new JMenuItem("查找下一个(N)"); // 实例化查找下一个菜单项
+		findNext.setFont(menuFont); // 设置查找下一个菜单项字体
+		findNext.setMnemonic('N'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		findNext.setAccelerator(KeyStroke.getKeyStroke((char) KeyEvent.VK_F3, 0)); // 设置快捷键为F3
+		findNext.addActionListener(new ActionAdapter()); // 添加操作监听事件
+		findNext.setEnabled(false); // 默认设置为不可用
+		editMenu.add(findNext); // 将查找下一个菜单项加入编辑菜单
+
+		replace = new JMenuItem("替换(R)..."); // 实例化替换菜单项
+		replace.setFont(menuFont); // 设置替换菜单项字体
+		replace.setMnemonic('R'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		replace.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_H, InputEvent.CTRL_DOWN_MASK)); // 设置快捷键为Ctrl+H
+		replace.addActionListener(new ActionAdapter()); // 添加操作监听事件
+		editMenu.add(replace); // 将替换菜单项加入编辑菜单
+
+		go = new JMenuItem("转到(G)..."); // 实例化转到菜单项
+		go.setFont(menuFont); // 设置转到菜单项字体
+		go.setMnemonic('G'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		go.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_G, InputEvent.CTRL_DOWN_MASK)); // 设置快捷键字体为Ctrl+G
+		go.addActionListener(new ActionAdapter()); // 添加操作监听事件
+		editMenu.add(go); // 将转到菜单项加入编辑菜单
+
+		editMenu.addSeparator(); // 添加一个分割线
+
+		selectAll = new JMenuItem("全选(A)"); // 实例化全选菜单项
+		selectAll.setFont(menuFont); // 设置全选菜单项字体
+		selectAll.setMnemonic('A'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		selectAll.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_A, InputEvent.CTRL_DOWN_MASK)); // 设置快捷键为Ctrl+A
+		selectAll.addActionListener(new ActionAdapter()); // 添加操作监听事件
+		editMenu.add(selectAll); // 将全选菜单项加入编辑菜单
+
+		date = new JMenuItem("时间/日期(D)"); // 实例化时间/日期菜单项
+		date.setFont(menuFont); // 设置时间/日期菜单项字体
+		date.setMnemonic('D'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		date.setAccelerator(KeyStroke.getKeyStroke((char) KeyEvent.VK_F5, 0)); // 设置快捷键为F5
+		date.addActionListener(new ActionAdapter()); // 添加操作监听事件
+		editMenu.add(date); // 将时间/日期菜单项加入编辑菜单
+
+		formatMenu = new JMenu("格式(O)"); // 实例化格式菜单
+		formatMenu.setFont(menuFont); // 设置格式菜单字体
+		formatMenu.setMnemonic('O'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		formatMenu.addMouseListener(new MouseClick()); // 添加鼠标监听事件
+		menuBar.add(formatMenu); // 将格式菜单加入菜单栏
+
+		autoNewLine = new JCheckBoxMenuItem("自动换行(W)"); // 实例化自动换行菜单项
+		autoNewLine.setFont(menuFont); // 设置自动换行菜单项字体
+		autoNewLine.setMnemonic('N'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		autoNewLine.addItemListener(new JMenuItemCheckBoxClick()); // 添加项监听事件
+		formatMenu.add(autoNewLine); // 将自动换行菜单项加入格式菜单
+
+		font = new JMenuItem("字体(F)..."); // 实例化字体菜单项
+		font.setFont(menuFont); // 设置字体菜单项字体
+		font.setMnemonic('F'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		font.addActionListener(new ActionAdapter()); // 添加操作监听事件
+		formatMenu.add(font); // 将字体菜单项加入格式菜单
+
+		viewMenu = new JMenu("查看(V)"); // 实例化查看菜单
+		viewMenu.setFont(menuFont); // 设置查看菜单字体
+		viewMenu.setMnemonic('V'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		viewMenu.addMouseListener(new MouseClick()); // 添加鼠标监听事件
+		menuBar.add(viewMenu); // 将查看菜单加入菜单栏
+
+		stateBar = new JCheckBoxMenuItem("状态栏(S)"); // 实例化状态栏菜单项
+		stateBar.setFont(menuFont); // 设置状态栏菜单项字体
+		stateBar.setMnemonic('S'); //  设置键盘助记符，与Alt组合时将激活此按钮
+		stateBar.addItemListener(new JMenuItemCheckBoxClick()); // 添加项监听事件
+		viewMenu.add(stateBar); // 将状态栏菜单项加入查看菜单
+
+		helpMenu = new JMenu("帮助(H)"); // 实例化帮助菜单
+		helpMenu.setFont(menuFont); // 设置帮助菜单字体
+		helpMenu.setMnemonic('H'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		helpMenu.addMouseListener(new MouseClick()); // 添加鼠标监听事件
+		menuBar.add(helpMenu); // 将帮助菜单加入菜单栏
+ 
+		getHelp = new JMenuItem("查看帮助(H)"); // 实例化查看帮助菜单项
+		getHelp.setFont(menuFont); // 设置查看帮助菜单项字体
+		getHelp.setMnemonic('H'); // 设置键盘助记符，与Alt组合时将激活此按钮
+		getHelp.addActionListener(new ActionAdapter()); // 添加操作监听事件
+		helpMenu.add(getHelp); // 将查看帮助菜单项加入帮助菜单
+
+		aboutNotepad = new JMenuItem("关于notepad(A)"); // 
+		aboutNotepad.setFont(menuFont);
+		aboutNotepad.setMnemonic('A');
+		aboutNotepad.addActionListener(new ActionAdapter());
+		helpMenu.add(aboutNotepad);
+	}
+
+	private void createOther() {
+		scrollPane = new JScrollPane(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
+		con.add(scrollPane, BorderLayout.CENTER);
+
+		panel = new JPanel();
+		panel.setVisible(false);
+		con.add(panel, BorderLayout.SOUTH);
+
+		text = new JTextArea();
+		text.addMouseListener(new MouseClick());
+		text.addKeyListener(new HandleKey());
+		text.getDocument().addDocumentListener(new JTextAeraChanged());
+		text.addCaretListener(new JTextAreaPosition());
+		text.setFont(textFont);
+		undoManager = new UndoManager();
+		text.getDocument().addUndoableEditListener(undoManager);
+		scrollPane.setViewportView(text);
+		panel.setLayout(new BorderLayout(0, 0));
+
+		stateLabel = new JLabel("第1行，第1列");
+		stateLabel.setFont(menuFont);
+		panel.add(stateLabel);
+	}
+
+	public void createPopupMenu() {
+		rightClick = new PopupMenu();
+
+		backoutRight = new MenuItem("    撤销(U)");
+		backoutRight.setFont(menuFont);
+		backoutRight.setEnabled(false);
+		backoutRight.addActionListener(new ActionAdapter());
+		rightClick.add(backoutRight);
+
+		rightClick.addSeparator();
+
+		cutRight = new MenuItem("    剪切(T)");
+		cutRight.setFont(menuFont);
+		cutRight.setEnabled(false);
+		cutRight.addActionListener(new ActionAdapter());
+		rightClick.add(cutRight);
+
+		copyRight = new MenuItem("    复制(C)");
+		copyRight.setFont(menuFont);
+		copyRight.setEnabled(false);
+		copyRight.addActionListener(new ActionAdapter());
+		rightClick.add(copyRight);
+
+		pasteRight = new MenuItem("    粘贴(P)");
+		pasteRight.setFont(menuFont);
+		pasteRight.addActionListener(new ActionAdapter());
+		rightClick.add(pasteRight);
+
+		deleteRight = new MenuItem("    删除(D)");
+		deleteRight.setFont(menuFont);
+		deleteRight.setEnabled(false);
+		deleteRight.addActionListener(new ActionAdapter());
+		rightClick.add(deleteRight);
+
+		rightClick.addSeparator();
+
+		selectAllRight = new MenuItem("    全选(A)");
+		selectAllRight.setFont(menuFont);
+		selectAllRight.addActionListener(new ActionAdapter());
+		rightClick.add(selectAllRight);
+
+		text.add(rightClick);
+	}
+
+	public void doNewFile() {
+		int select;
+		int flag = 0;
+
+		if (changed) {
+			select = JOptionPane.showConfirmDialog(mainFrame, "文件修改后尚未存盘，是否保存？");
+
+			switch (select) {
+			case JOptionPane.YES_OPTION:
+				flag = doSave();
+				break;
+			case JOptionPane.NO_OPTION:
+				flag = 1;
+				break;
+			default:
+				flag = 0;
+				break;
+			}
+		} else {
+			flag = 1;
+		}
+
+		if (flag == 1) {
+			mainFrame.setTitle("无标题 - 记事本");
+			text.setText("");
+			changed = false;
+			haveName = false;
+		}
+	}
+
+	public void doOpen() {
+		int select;
+		int flag = 0;
+		File tmpFile = null;
+		FileNameExtensionFilter filter;
+		JFileChooser chooser;
+		FileInputStream fis;
+		byte[] buf;
+
+		if (changed) {
+			select = JOptionPane.showConfirmDialog(mainFrame, "文件修改后尚未存盘，收否修改？");
+
+			switch (select) {
+			case JOptionPane.YES_OPTION:
+				flag = doSave();
+				break;
+			case JOptionPane.NO_OPTION:
+				flag = 1;
+				break;
+			default:
+				flag = 0;
+				break;
+			}
+		} else {
+			flag = 1;
+		}
+
+		if (flag == 1) {
+			changed = false;
+			filter = new FileNameExtensionFilter("文本文件", "txt");
+
+			if (file != null) {
+				chooser = new JFileChooser(file.getPath());
+			} else {
+				chooser = new JFileChooser();
+			}
+
+			chooser.setFileFilter(filter);
+			select = chooser.showOpenDialog(mainFrame);
+
+			if (select == JFileChooser.APPROVE_OPTION) {
+				tmpFile = chooser.getSelectedFile();
+
+				try {
+					if (tmpFile != null) {
+						fis = new FileInputStream(tmpFile);
+						buf = new byte[(int) tmpFile.length()];
+						fis.read(buf);
+						fis.close();
+
+						text.setText(new String(buf));
+						file = tmpFile;
+						mainFrame.setTitle(file.getName() + " - 记事本");
+						changed = false;
+						haveName = true;
+					}
+				} catch (FileNotFoundException e) {
+					JOptionPane.showMessageDialog(mainFrame, "指定的文件名称或属性有问题！");
+				} catch (IOException e) {
+					JOptionPane.showMessageDialog(mainFrame, "无法读取文件，请检查文件是否被锁定！");
+				}
+			}
+		}
+	}
+
+	public int doSave() {
+		FileOutputStream fos;
+		byte[] content;
+		int flag;
+
+		if (!haveName) {
+			flag = doSaveAs();
+		} else if (changed) {
+			try {
+				fos = new FileOutputStream(file);
+				content = text.getText().getBytes();
+				fos.write(content);
+				fos.close();
+				changed = false;
+				flag = 1;
+			} catch (FileNotFoundException e) {
+				JOptionPane.showConfirmDialog(mainFrame, "指定的文件名称或属性有问题！");
+				flag = 0;
+			} catch (IOException e) {
+				JOptionPane.showConfirmDialog(mainFrame, "无法写文件，请检查文件是否被锁定！");
+				flag = 0;
+			}
+		} else {
+			flag = 1;
+		}
+
+		return flag;
+	}
+
+	public int doSaveAs() {
+		FileOutputStream fos;
+		byte[] content;
+		int flag = 0;
+		File tmpFile = null;
+		FileNameExtensionFilter filter = new FileNameExtensionFilter("文本文件", "txt");
+		JFileChooser chooser;
+
+		if (file != null) {
+			chooser = new JFileChooser(file.getPath());
+		} else {
+			chooser = new JFileChooser();
+		}
+
+		chooser.setFileFilter(filter);
+
+		flag = chooser.showSaveDialog(mainFrame);
+		if (flag == JFileChooser.APPROVE_OPTION) {
+			tmpFile = chooser.getSelectedFile();
+
+			if (tmpFile.exists()) {
+				if (JOptionPane.showConfirmDialog(mainFrame, "文件已经存在，是否覆盖？", "警告",
+						JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+					flag = 1;
+				} else {
+					flag = 0;
+				}
+			} else {
+				flag = 1;
+			}
+		} else {
+			flag = 0;
+		}
+
+		if (flag == 1) {
+			try {
+				fos = new FileOutputStream(tmpFile);
+				content = text.getText().getBytes();
+				fos.write(content);
+				fos.close();
+				flag = 1;
+			} catch (FileNotFoundException e) {
+				JOptionPane.showMessageDialog(mainFrame, "指定的文件名称或属性有问题！");
+				flag = 0;
+			} catch (IOException e) {
+				JOptionPane.showMessageDialog(mainFrame, "无法读写文件，请检查文件是否被锁定！");
+				flag = 0;
+			}
+		}
+
+		if (flag == 1) {
+			file = tmpFile;
+			mainFrame.setTitle(file.getName() + " - 记事本");
+			changed = false;
+			haveName = true;
+		}
+
+		return flag;
+	}
+
+	public void doPageSetting() {
+		PageFormat pf = new PageFormat();
+		PrinterJob.getPrinterJob().pageDialog(pf);
+	}
+
+	public void doPrint() {
+		try {
+			PrintRequestAttributeSet pras = new HashPrintRequestAttributeSet();
+			DocFlavor flavor = DocFlavor.BYTE_ARRAY.AUTOSENSE;
+			PrintService[] printServices = PrintServiceLookup.lookupPrintServices(flavor, pras);
+			PrintService defaultService = PrintServiceLookup.lookupDefaultPrintService();
+			PrintService service = null;
+			service = ServiceUI.printDialog(null, 100, 100, printServices, defaultService, flavor, pras);
+
+			if (service != null) {
+				DocPrintJob job = service.createPrintJob();
+				DocAttributeSet das = new HashDocAttributeSet();
+				Doc doc = new SimpleDoc(text.getText().getBytes(), flavor, das);
+				job.print(doc, pras);
+			}
+		} catch (Exception e) {
+			JOptionPane.showMessageDialog(mainFrame, "打印任务无法完成！");
+		}
+	}
+
+	public void doExit() {
+		int select;
+
+		if (!changed) {
+			System.exit(0);
+		} else {
+			select = JOptionPane.showConfirmDialog(mainFrame, "是否将更改保存到 " + "？", "notepad",
+					JOptionPane.YES_NO_CANCEL_OPTION);
+
+			switch (select) {
+			case JOptionPane.YES_OPTION:
+				select = doSave();
+				if (select == 1) {
+					System.exit(0);
+				}
+				break;
+
+			case JOptionPane.NO_OPTION:
+				System.exit(0);
+				break;
+			case JOptionPane.CANCEL_OPTION:
+				break;
+			}
+		}
+	}
+
+	public void doBackout() {
+		if (undoManager.canUndo()) {
+			undoManager.undo();
+		} else {
+			undoManager.redo();
+		}
+	}
+
+	public void doCut() {
+		text.cut();
+	}
+
+	public void doCopy() {
+		text.copy();
+	}
+
+	public void doPaste() {
+		text.paste();
+	}
+
+	public void doDelete() {
+		text.replaceSelection("");
+	}
+
+	public void doFind() {
+		new FindDialog(mainFrame, text);
+	}
+
+	public void doFindNext() {
+		new FindDialog(mainFrame, text);
+	}
+
+	public void doReplace() {
+		new ReplaceDialog(mainFrame, text);
+	}
+
+	public void doGo() {
+		new GoDialog(mainFrame, text);
+	}
+
+	public void doSelectAll() {
+		text.selectAll();
+	}
+
+	public void doDate() {
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		text.append(sdf.format(new Date()));
+	}
+
+	public void doFont() {
+		if (myFontDialog == null) {
+			myFontDialog = new FontDialog(mainFrame);
+		}
+
+		if (myFontDialog.showFontDialog() == FontDialog.OK) {
+			text.setFont(myFontDialog.getFont());
+		}
+	}
+
+	public void doGetHelp() {
+		Runtime rt = Runtime.getRuntime();
+
+		try {
+			rt.exec("rundll32 url.dll,FileProtocolHandler " + "https://www.baidu.com");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void doAboutNotepad() {
+		new AboutDialog(mainFrame);
+	}
+
+	public void checkText() {
+		if (text.getSelectedText() == null) {
+			cut.setEnabled(false);
+			cutRight.setEnabled(false);
+			copy.setEnabled(false);
+			copyRight.setEnabled(false);
+			delete.setEnabled(false);
+			deleteRight.setEnabled(false);
+		} else {
+			cut.setEnabled(true);
+			cutRight.setEnabled(true);
+			copy.setEnabled(true);
+			copyRight.setEnabled(true);
+			delete.setEnabled(true);
+			deleteRight.setEnabled(true);
+		}
+	}
+
+	public class ActionAdapter implements ActionListener {
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			Object obj = e.getSource();
+
+			if (obj == newFile) {
+				doNewFile();
+			} else if (obj == openFile) {
+				doOpen();
+			} else if (obj == saveFile) {
+				doSave();
+			} else if (obj == saveAsFile) {
+				doSaveAs();
+			} else if (obj == pageSetting) {
+				doPageSetting();
+			} else if (obj == print) {
+				doPrint();
+			} else if (obj == exit) {
+				doExit();
+			} else if (obj == backout) {
+				doBackout();
+			} else if (obj == cut) {
+				doCut();
+			} else if (obj == copy) {
+				doCopy();
+			} else if (obj == paste) {
+				doPaste();
+			} else if (obj == delete) {
+				doDelete();
+			} else if (obj == find) {
+				doFind();
+			} else if (obj == findNext) {
+				doFindNext();
+			} else if (obj == replace) {
+				doReplace();
+			} else if (obj == go) {
+				doGo();
+			} else if (obj == selectAll) {
+				doSelectAll();
+			} else if (obj == date) {
+				doDate();
+			} else if (obj == font) {
+				doFont();
+			} else if (obj == getHelp) {
+				doGetHelp();
+			} else if (obj == aboutNotepad) {
+				doAboutNotepad();
+			} else if (obj == backoutRight) {
+				doBackout();
+			} else if (obj == copyRight) {
+				doCopy();
+			} else if (obj == cutRight) {
+				doCut();
+			} else if (obj == pasteRight) {
+				doPaste();
+			} else if (obj == deleteRight) {
+				doDelete();
+			} else if (obj == selectAllRight) {
+				doSelectAll();
+			}
+		}
+	}
+
+	public class MouseClick extends MouseAdapter {
+		@Override
+		public void mouseEntered(MouseEvent e) {
+			Object obj = e.getSource();
+
+			if (obj == fileMenu || obj == editMenu || obj == formatMenu || obj == viewMenu || obj == helpMenu) {
+				((JComponent) obj).setOpaque(true);
+				((Component) obj).setBackground(new Color(174, 238, 238));
+			}
+		}
+
+		@Override
+		public void mouseExited(MouseEvent e) {
+			Object obj = e.getSource();
+
+			if (obj == fileMenu || obj == editMenu || obj == formatMenu || obj == viewMenu || obj == helpMenu) {
+				((Component) obj).setBackground(Color.WHITE);
+			}
+		}
+
+		@Override
+		public void mousePressed(MouseEvent e) {
+			Object obj = e.getSource();
+			int mods = e.getModifiers();
+
+			if (obj == text) {
+				if ((mods & InputEvent.BUTTON3_MASK) != 0) {
+					rightClick.show(text, e.getX(), e.getY());
+				}
+			}
+			checkText();
+		}
+
+		@Override
+		public void mouseReleased(MouseEvent e) {
+			checkText();
+		}
+	}
+
+	public class HandleKey extends KeyAdapter {
+		@Override
+		public void keyTyped(KeyEvent e) {
+			checkText();
+		}
+	}
+
+	public class JMenuItemCheckBoxClick implements ItemListener {
+		@Override
+		public void itemStateChanged(ItemEvent e) {
+			Object obj = e.getSource();
+
+			if (obj == stateBar) {
+				if (((JCheckBoxMenuItem) obj).getState()) {
+					panel.setVisible(true);
+				} else {
+					panel.setVisible(false);
+				}
+			}
+
+			if (obj == autoNewLine) {
+				if (((JCheckBoxMenuItem) obj).getState()) {
+					text.setLineWrap(true);
+					scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+				} else {
+					text.setLineWrap(false);
+					scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
+				}
+			}
+		}
+	}
+
+	public class WindowClickClose extends WindowAdapter {
+		@Override
+		public void windowClosing(WindowEvent e) {
+			if (e.getID() == WindowEvent.WINDOW_CLOSING) {
+				doExit();
+			}
+		}
+	}
+
+	public class JTextAeraChanged implements DocumentListener {
+		@Override
+		public void insertUpdate(DocumentEvent e) {
+			changed = true;
+			backout.setEnabled(true);
+			backoutRight.setEnabled(true);
+
+			if (!text.getText().equals("")) {
+				find.setEnabled(true);
+				findNext.setEnabled(true);
+			} else {
+				find.setEnabled(false);
+				findNext.setEnabled(false);
+			}
+		}
+
+		@Override
+		public void removeUpdate(DocumentEvent e) {
+			changed = true;
+			backout.setEnabled(true);
+			backoutRight.setEnabled(true);
+
+			if (!text.getText().equals("")) {
+				find.setEnabled(true);
+				findNext.setEnabled(true);
+			} else {
+				find.setEnabled(false);
+				findNext.setEnabled(false);
+			}
+		}
+
+		@Override
+		public void changedUpdate(DocumentEvent e) {
+		}
+	}
+
+	public class JTextAreaPosition implements CaretListener {
+		@Override
+		public void caretUpdate(CaretEvent e) {
+			try {
+				int pos = text.getCaretPosition();
+				// 获取行数
+				int row = text.getLineOfOffset(pos) + 1;
+				// 获取列数
+				int col = pos - text.getLineStartOffset(row - 1) + 1;
+				stateLabel.setText("第" + row + "行，第" + col + "列");
+			} catch (Exception ex) {
+				stateLabel.setText("无法获得当前光标位置！");
+			}
+		}
+	}
+
+	public static void main(String[] args) {
+		WindowUtil.beautyWindow();
+
+		EventQueue.invokeLater(new Runnable() {
+			public void run() {
+				try {
+					Notepad window = new Notepad();
+					window.mainFrame.setVisible(true);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		});
+	}
+}
